@@ -1,0 +1,195 @@
+<%- include('head') %>
+<!-- Modal -->
+<div class="modal fade" id="addeditModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="addeditModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addeditModalLabel">Add/Edit Category</h5>
+        <button type="button" class="btn-close" id="mainmodal_close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="catadd" name="catadd">
+        <div class="modal-body">
+          <div class="mb-3">
+            <input type="hidden" name="catid" id="catid" value="" />
+            <label for="name" class="form-label">Name</label>
+            <input type="text" name="catname" id="catname" value="" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label for="language" class="form-label">order_show</label>
+            <input type="text" name="order_show" id="catorder" value="" class="form-control inputform" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <!-- <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button> -->
+          <button type="submit" class="btn btn-primary">Save changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- End Modal -->
+<div class="container">
+  <div class="row">
+    <div class="col-md-3 offset-md-9 text-end mt-3">
+      <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#addeditModal">
+        Add
+      </button>
+    </div>
+  </div>
+  <div class="row" id="main_div">
+    <% Object.values(catdata_data).forEach(function(item){ %>
+    <div class="col-md-4 mt-3">
+      <div class="card">
+        <div class="card-body bg-transparent border-success">
+          <%-item.name%>
+          <span class="position-absolute top-0 mt-2 end-0 me-2">
+            <button class="btn btn-info editbtn" data-id="<%-item.id%>" data-name="<%-item.name%>" data-order="<%-item.order_show%>">
+              Edit
+            </button>
+            <form class="deleteform" data-id="<%-item.id%>" style="display: contents">
+              <input type="hidden" name="delete_id" value="<%-item.id%>" />
+              <button type="submit" class="btn btn-danger deletebtn">
+                Delete
+              </button>
+            </form>
+          </span>
+        </div>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+</div>
+<%- include('foot') %>
+<script>
+  const addeditModal = document.getElementById("addeditModal");
+  const modal = new bootstrap.Modal(addeditModal);
+
+  document.querySelector("#mainmodal_close").addEventListener("click", function(e) {
+    document.querySelector("#catname").value = "";
+    document.querySelector("#catorder").value = "";
+    document.querySelector("#catid").value = "";
+  });
+
+  document
+    .getElementById("catadd")
+    .addEventListener("submit", function(event) {
+      const catname = document.querySelector("#catname").value;
+      const catorder = document.querySelector("#catorder").value;
+      const catid = document.querySelector("#catid").value;
+      event.preventDefault();
+      // alert("sm");
+      fetch("/update_category", {
+          method: "POST",
+          headers: {
+            Accept: "application/json, text/plain, */*",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: catid,
+            name: catname,
+            order_show: catorder,
+          }),
+        })
+        .then((res) => res.json())
+        .then((res) => {
+          if (res.success == 0) {
+            console.log(res.return);
+            alert(res.msg);
+          } else {
+            console.log(res);
+            // alert(res.msg);
+            fetchdata();
+          }
+        });
+      modal.hide();
+      return false;
+    });
+
+  fetchdata();
+
+  function fetchdata() {
+    document.querySelector("#catname").value = "";
+    document.querySelector("#catid").value = "";
+    document.querySelector("#catorder").value = "";
+    let html = "";
+    fetch("/api/category", {
+        method: "GET",
+      })
+      .then((res) => res.json())
+      .then((res) => {
+        if (res.success == 0) {
+          console.log(res);
+        } else {
+          console.log(res.return);
+          res.return.forEach((data) => {
+            html += '<div class="col-md-4 mt-3">';
+            html += '<div class="card">';
+            html += '<div class="card-body bg-transparent border-success">';
+            html += data.name+" ("+data.order_show+")";
+            html += '<span class="position-absolute top-0 mt-2 end-0 me-2">';
+            html +=
+              '<button class="btn btn-info editbtn" data-id="' +
+              data._id +
+              '" data-name="' +
+              data.name +
+              '" data-order="' +
+              data.order_show +
+              '">Edit</button> ';
+            html += '<form class="deleteform" style="display: contents">';
+            html +=
+              '<input type="hidden" name="delete_id" value="' +
+              data._id +
+              '" />';
+            html += '<button class="btn btn-danger deletebtn">Delete</button>';
+            html += "</form></span></div></div></div>";
+          });
+
+          document.getElementById("main_div").innerHTML = html;
+
+          Array.from(document.querySelectorAll(".editbtn")).forEach(
+            (button) => {
+              button.addEventListener("click", (e) => {
+                e.preventDefault();
+                const id = e.target.getAttribute("data-id");
+                const name = e.target.getAttribute("data-name");
+                const order = e.target.getAttribute("data-order");
+                document.querySelector("#catname").value = name;
+                document.querySelector("#catorder").value = order;
+                document.querySelector("#catid").value = id;
+                modal.show();
+              });
+            }
+          );
+
+          Array.from(document.querySelectorAll(".deleteform")).forEach(
+            (form) => {
+              form.addEventListener("submit", (e) => {
+                e.preventDefault();
+                if (confirm("Delete This Category?") == true) {
+                  let formData = new FormData(form);
+                  fetch("/delete_category", {
+                      method: "POST",
+                      body: formData,
+                    })
+                    .then((res) => res.json())
+                    .then((res) => {
+                      if (res.success == 0) {
+                        console.log(res.return);
+                        alert(res.msg);
+                      } else {
+                        // console.log(res);
+                        // alert(res.msg);
+                        fetchdata();
+                      }
+                    });
+                  return false;
+                } else {
+                  return false;
+                }
+              });
+            }
+          );
+        }
+      });
+  }
+</script>
